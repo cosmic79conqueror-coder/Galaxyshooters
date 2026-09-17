@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Galaxy Shooter</title>
+<style>
+  body { margin:0; background:#000; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(()=> {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let width = canvas.width = innerWidth;
+  let height = canvas.height = innerHeight;
+
+  const player = { x: width/2 - 20, y: height - 50, w: 40, h: 40, speed: 5, lives: 3, fuel: 100 };
+  let enemies = [];
+  let bullets = [];
+  let particles = [];
+  let frames = 0;
+  let level = 1;
+  let score = 0;
+  let gameOver = false;
+
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.key] = true);
+  window.addEventListener('keyup', e => keys[e.key] = false);
+
+  function spawnEnemies() {
+    if (frames % (60 / (level * 0.5 + 0.5)) === 0) {
+      const x = Math.random() * (width - 40);
+      const speed = 2 + level * 0.5;
+      enemies.push({ x, y: -30, w: 40, h: 30, speed, color: `hsl(${(Math.random()*60)+150},80%,60%)` });
+    }
+  }
+
+  function shoot() {
+    if (frames % 20 === 0) {
+      bullets.push({ x: player.x + player.w/2 - 2, y: player.y, w: 4, h: 15, speed: -7 });
+    }
+  }
+
+  function updateFuel() {
+    if (player.fuel > 0) player.fuel -= 0.1;
+    if (player.fuel <= 0) gameOver = true;
+  }
+
+  function drawBar(x, y, w, pct, color) {
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x, y, w, 10);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w * pct, 10);
+  }
+
+  function gameLoop() {
+    if (gameOver) {
+      ctx.fillStyle = '#fff';
+      ctx.fillText('Game Over - Press Refresh', width/2 - 80, height/2);
+      return;
+    }
+    ctx.clearRect(0,0,width,height);
+
+    // player movement
+    if (keys[' left'] || keys['ArrowLeft']) player.x -= player.speed;
+    if (keys[' right'] || keys['ArrowRight']) player.x += player.speed;
+    if (keys[' up'] || keys['ArrowUp']) player.y -= player.speed;
+    if (keys[' down'] || keys['ArrowDown']) player.y += player.speed;
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.w > width) player.x = width - player.w;
+    if (player.y < 0) player.y = 0;
+    if (player.y + player.h > height) player.y = height - player.h;
+
+    // fuel and lives bar
+    drawBar(10, 10, 200, player.fuel/100, '#ff0');
+    drawBar(10, 30, 200, player.lives/5, '#f00');
+
+    spawnEnemies();
+
+    // enemies
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      e.y += e.speed;
+      ctx.fillStyle = e.color;
+      ctx.fillRect(e.x, e.y, e.w, e.h);
+      // collision with bullet
+      for (let j = bullets.length - 1; j >= 0; j--) {
+        const b = bullets[j];
+        if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
+          bullets.splice(j, 1);
+          enemies.splice(i, 1);
+          score += 10;
+          // particle explosion
+          for (let k = 0; k < 5; k++) {
+            particles.push({ x: e.x + e.w/2, y: e.y + e.h/2, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 30, color: e.color });
+          }
+          if (Math.random() < 0.3) player.fuel = Math.min(100, player.fuel + 10);
+          break;
+        }
+      }
+      // collision with player
+      if (e.y + e.h > player.y && e.x < player.x + player.w && e.x + e.w > player.x) {
+        player.lives--;
+        enemies.splice(i, 1);
+        // reset player position
+        player.x = width/2 - 20;
+        player.y = height - 50;
+        if (player.lives <= 0) gameOver = true;
+      }
+      // fuel depletion if off screen
+      if (e.y > height) {
+        enemies.splice(i, 1);
+        player.fuel -= 5;
+      }
+    }
+
+    // bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.y += b.speed;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      if (b.y < 0) bullets.splice(i, 1);
+    }
+
+    // particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.life--;
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life/30;
+      ctx.fillRect(p.x, p.y, 4, 4);
+      ctx.globalAlpha = 1;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // level up
+    if (enemies.length === 0 && score >= level * 200) {
+      level++;
+      score -= level * 200; // keep some score
+    }
+
+    shoot();
+    updateFuel();
+
+    frames++;
+    requestAnimationFrame(gameLoop);
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !gameOver) {
+      shoot();
+    }
+  });
+
+  gameLoop();
+})();
+</script>
+</body>
+</html>
