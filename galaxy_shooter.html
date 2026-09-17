@@ -17,7 +17,7 @@
   let width = canvas.width = innerWidth;
   let height = canvas.height = innerHeight;
 
-  const player = { x: width/2 - 20, y: height - 50, w: 40, h: 40, speed: 5, lives: 3, fuel: 100 };
+  const player = { x: width/2 - 20, y: height - 50, w: 40, h: 40, speed: 5, lives: 1 };
   let enemies = [];
   let bullets = [];
   let particles = [];
@@ -44,18 +44,6 @@
     }
   }
 
-  function updateFuel() {
-    if (player.fuel > 0) player.fuel -= 0.1;
-    if (player.fuel <= 0) gameOver = true;
-  }
-
-  function drawBar(x, y, w, pct, color) {
-    ctx.fillStyle = '#555';
-    ctx.fillRect(x, y, w, 10);
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, w * pct, 10);
-  }
-
   function gameLoop() {
     if (gameOver) {
       ctx.fillStyle = '#fff';
@@ -74,9 +62,19 @@
     if (player.y < 0) player.y = 0;
     if (player.y + player.h > height) player.y = height - player.h;
 
-    // fuel and lives bar
-    drawBar(10, 10, 200, player.fuel/100, '#ff0');
-    drawBar(10, 30, 200, player.lives/5, '#f00');
+    // draw fighter plane (triangle)
+    ctx.fillStyle = '#0ff';
+    ctx.beginPath();
+    ctx.moveTo(player.x + player.w/2, player.y);
+    ctx.lineTo(player.x, player.y + player.h);
+    ctx.lineTo(player.x + player.w, player.y + player.h);
+    ctx.closePath();
+    ctx.fill();
+
+    // draw score
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Arial';
+    ctx.fillText('Score: ' + score, 10, 20);
 
     spawnEnemies();
 
@@ -97,7 +95,6 @@
           for (let k = 0; k < 5; k++) {
             particles.push({ x: e.x + e.w/2, y: e.y + e.h/2, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 30, color: e.color });
           }
-          if (Math.random() < 0.3) player.fuel = Math.min(100, player.fuel + 10);
           break;
         }
       }
@@ -110,11 +107,7 @@
         player.y = height - 50;
         if (player.lives <= 0) gameOver = true;
       }
-      // fuel depletion if off screen
-      if (e.y > height) {
-        enemies.splice(i, 1);
-        player.fuel -= 5;
-      }
+      
     }
 
     // bullets
@@ -144,7 +137,7 @@
     }
 
     shoot();
-    updateFuel();
+    
 
     frames++;
     requestAnimationFrame(gameLoop);
